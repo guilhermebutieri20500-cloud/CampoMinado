@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dungeon Minesweeper - RPG Dark Fantasy Redesign</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Medieval & Dark Fantasy Feel -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800;900&family=MedievalSharp&family=Metamorphous&family=Quicksand:wght@500;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dungeon: {
+                            bg: '#121016',
+                            panel: '#1a1622',
+                            border: '#3a3148',
+                            accent: '#d4a359',
+                            danger: '#a83232',
+                            mana: '#3b629b',
+                            stone: '#2a2435',
+                            stoneLight: '#3d354d'
+                        }
+                    },
+                    fontFamily: {
+                        cinzel: ['Cinzel', 'serif'],
+                        medieval: ['MedievalSharp', 'cursive'],
+                        sans: ['Quicksand', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #0d0b10;
+            color: #dcd6e5;
+            font-family: 'Quicksand', sans-serif;
+            user-select: none;
+        }
+
+        /* Stone and Parchment UI Styling */
+        .stone-card {
+            background: #181420;
+            border: 2px solid #362e45;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.8), 0 4px 12px rgba(0,0,0,0.5);
+            border-radius: 12px;
+        }
+
+        .stone-button {
+            background: linear-gradient(180deg, #322b40 0%, #201a2b 100%);
+            border: 1px solid #4a3e5e;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+            transition: all 0.15s ease;
+        }
+        .stone-button:active {
+            transform: translateY(1px);
+            background: #181322;
+        }
+
+        .wood-border {
+            border: 3px solid #423223;
+            outline: 1px solid #8c663f;
+        }
+
+        /* Viewport Layout Ratios */
+        .viewport-web {
+            width: 100%;
+            max-width: 1200px;
+            aspect-ratio: 16 / 9;
+        }
+        .viewport-mobile {
+            width: 380px;
+            height: 750px;
+            max-width: 100%;
+        }
+
+        /* Grid Tile Styles */
+        .tile-hidden {
+            background: linear-gradient(135deg, #3d344d 0%, #251f30 100%);
+            border: 2px solid #4e4363;
+            box-shadow: inset 1px 1px 0px rgba(255,255,255,0.1);
+        }
+        .tile-hidden:hover {
+            background: #463b58;
+        }
+        .tile-revealed {
+            background: #15121b;
+            border: 1px solid #272133;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #121016; }
+        ::-webkit-scrollbar-thumb { background: #3a3148; border-radius: 3px; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-start p-2 sm:p-4 bg-dungeon-bg text-slate-200">
+
+    <!-- BARRA DE SELEÇÃO DE PROTÓTIPOS (EXIGÊNCIA DE APRESENTAR WEB E MOBILE) -->
+    <header class="w-full max-w-6xl mb-3 stone-card p-3 flex flex-wrap items-center justify-between gap-3 border-dungeon-accent/40 z-30">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-dungeon-danger/20 border border-dungeon-danger flex items-center justify-center text-dungeon-accent text-xl">
+                <i class="fa-solid fa-skull"></i>
+            </div>
+            <div>
+                <h1 class="font-cinzel text-lg sm:text-xl font-black text-dungeon-accent tracking-wide">
+                    DUNGEON MINESWEEPER
+                </h1>
+                <p class="text-xs text-slate-400 font-sans">Opção 4: Redesign Fantasia Sombria / RPG de Masmorra</p>
+            </div>
+        </div>
+
+        <!-- SELETOR DE VIEWPORT (WEB VS MOBILE) -->
+        <div class="flex items-center bg-black/40 p-1 rounded-xl border border-dungeon-border">
+            <button id="btnViewWeb" onclick="switchViewport('web')" class="px-3.5 py-1.5 rounded-lg font-cinzel text-xs font-bold transition-all flex items-center gap-2 bg-dungeon-accent text-black">
+                <i class="fa-solid fa-desktop"></i>
+                <span>Versão Web (16:9)</span>
+            </button>
+            <button id="btnViewMobile" onclick="switchViewport('mobile')" class="px-3.5 py-1.5 rounded-lg font-cinzel text-xs font-bold transition-all flex items-center gap-2 text-slate-400 hover:text-white">
+                <i class="fa-solid fa-mobile-screen-button"></i>
+                <span>Versão Mobile (9:16)</span>
+            </button>
+        </div>
+
+        <!-- AÇÕES DO JOGO -->
+        <div class="flex items-center gap-2">
+            <button onclick="resetGame()" class="px-3 py-1.5 rounded-lg stone-button text-dungeon-accent font-cinzel text-xs hover:border-dungeon-accent flex items-center gap-1.5">
+                <i class="fa-solid fa-arrow-rotate-left"></i>
+                <span>NOVA PARTIDA</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- ÁREA PRINCIPAL DOS PROTÓTIPOS -->
+    <main class="w-full flex-1 flex flex-col items-center justify-center relative">
+        
+        <!-- ========================================== -->
+        <!-- 1. VERSÃO WEB DESKTOP (16:9 - 1920x1080)   -->
+        <!-- ========================================== -->
+        <div id="webContainer" class="viewport-web relative flex flex-col justify-between p-4 stone-card border-2 border-dungeon-border overflow-hidden transition-all">
+            
+            <!-- HUD SUPERIOR (WEB) -->
+            <div class="w-full flex items-center justify-between bg-black/60 p-3 rounded-xl border border-dungeon-border mb-2">
+                <div class="flex items-center gap-6">
+                    <div>
+                        <div class="text-[10px] font-cinzel text-slate-400">ARMADILHAS (ARMAS)</div>
+                        <div id="webFlagsLeft" class="font-cinzel text-xl font-bold text-dungeon-accent">10</div>
+                    </div>
+                    <div class="h-6 w-px bg-dungeon-border"></div>
+                    <div>
+                        <div class="text-[10px] font-cinzel text-slate-400">TEMPO NA MASMORRA</div>
+                        <div id="webTimer" class="font-mono text-xl font-bold text-slate-200">00:00</div>
+                    </div>
+                    <div class="h-6 w-px bg-dungeon-border"></div>
+                    <div>
+                        <div class="text-[10px] font-cinzel text-slate-400">NÍVEL DA MASMORRA</div>
+                        <div class="font-cinzel text-sm font-bold text-slate-300">MASMORRA DAS RUÍNAS - I</div>
+                    </div>
+                </div>
+
+                <!-- HEALTH BAR (HP) -->
+                <div class="flex items-center gap-3">
+                    <span class="text-xs font-cinzel text-slate-400">VIDA DO HERÓI:</span>
+                    <div class="flex gap-1.5" id="webHP">
+                        <i class="fa-solid fa-heart text-dungeon-danger text-base"></i>
+                        <i class="fa-solid fa-heart text-dungeon-danger text-base"></i>
+                        <i class="fa-solid fa-heart text-dungeon-danger text-base"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LAYOUT CENTRAL (HUD LATERAL ESQUERDO + GRADE CENTRAL + HUD LATERAL DIREITO) -->
+            <div class="flex-1 my-1 flex gap-4 items-center justify-between overflow-hidden">
+                
+                <!-- PAINEL LATERAL ESQUERDO (INVENTÁRIO E POÇÕES) -->
+                <aside class="w-56 h-full stone-card p-3 flex flex-col justify-between hidden md:flex border border-dungeon-border">
+                    <div>
+                        <h3 class="font-cinzel text-xs font-bold text-dungeon-accent tracking-wider mb-2 flex items-center gap-1.5 border-b border-dungeon-border pb-1">
+                            <i class="fa-solid fa-toolbox"></i> INVENTÁRIO DO EXPLORADOR
+                        </h3>
+                        
+                        <!-- ITENS DA MASMORRA -->
+                        <div class="space-y-2 mt-2">
+                            <div class="p-2 rounded-lg bg-black/40 border border-dungeon-border flex items-center gap-2">
+                                <div class="w-8 h-8 rounded bg-dungeon-mana/20 border border-dungeon-mana flex items-center justify-center text-dungeon-mana">
+                                    <i class="fa-solid fa-eye"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-cinzel text-slate-200">Pergaminho Revelador</div>
+                                    <div class="text-[10px] text-slate-400">Mostra 1 área segura</div>
+                                </div>
+                            </div>
+
+                            <button onclick="useRadarSpell()" id="btnRadar" class="w-full p-2 rounded-lg stone-button hover:border-dungeon-accent flex items-center justify-between text-left">
+                                <div class="flex items-center gap-2">
+                                    <i class="fa-solid fa-wand-magic-sparkles text-dungeon-accent"></i>
+                                    <span class="text-xs font-cinzel">Magia de Radar</span>
+                                </div>
+                                <span id="radarCount" class="text-xs font-mono text-dungeon-accent font-bold">2/2</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- GUIA DE REGRAS WEB -->
+                    <div class="p-2.5 bg-black/40 rounded-lg border border-dungeon-border text-[11px] text-slate-400">
+                        <div class="font-cinzel font-bold text-slate-300 mb-1">COMO JOGAR:</div>
+                        <ul class="list-disc pl-3 space-y-1 text-[10px]">
+                            <li><strong>Clique Esquerdo:</strong> Escavar / Revelar sala.</li>
+                            <li><strong>Clique Direito:</strong> Marcar com Tocha (Bandeira).</li>
+                        </ul>
+                    </div>
+                </aside>
+
+                <!-- TABULEIRO / GRADE DA MASMORRA (CENTRO) -->
+                <div class="flex-1 h-full flex items-center justify-center bg-black/80 rounded-xl border border-dungeon-border p-2 relative overflow-auto">
+                    <div id="webBoard" class="grid gap-1 m-auto"></div>
+                </div>
+
+                <!-- PAINEL LATERAL DIREITO (LOG DA EXPEDIÇÃO E RADAR) -->
+                <aside class="w-56 h-full stone-card p-3 flex flex-col justify-between hidden md:flex border border-dungeon-border">
+                    <div>
+                        <h3 class="font-cinzel text-xs font-bold text-dungeon-accent tracking-wider mb-2 flex items-center gap-1.5 border-b border-dungeon-border pb-1">
+                            <i class="fa-solid fa-scroll"></i> DIÁRIO DA MASMORRA
+                        </h3>
+
+                        <!-- LOG DE AÇÕES -->
+                        <div id="gameLog" class="h-44 overflow-y-auto space-y-1 text-[11px] font-mono text-slate-400 bg-black/30 p-2 rounded border border-dungeon-border">
+                            <p class="text-emerald-400">> Entrou no nível I da masmorra.</p>
+                            <p>> Evite as armadilhas ocultas nas pedras.</p>
+                        </div>
+                    </div>
+
+                    <div class="p-2 bg-black/40 rounded-lg border border-dungeon-border text-center">
+                        <span class="text-[10px] font-cinzel text-slate-400 block">STATUS DA SALA</span>
+                        <span id="webStatusText" class="text-xs font-cinzel font-bold text-emerald-400">EXPLORANDO...</span>
+                    </div>
+                </aside>
+
+            </div>
+
+            <!-- RODAPÉ HUD (WEB) -->
+            <footer class="w-full flex items-center justify-between bg-black/60 p-2 rounded-xl border border-dungeon-border text-[11px] text-slate-400 font-sans">
+                <div>PROTÓTIPO WEB (DESKTOP HORIZONTAL 16:9 - 1920x1080 PX)</div>
+                <div class="flex items-center gap-3">
+                    <span>SALAS RESTANTES: <strong id="webSafeRemaining" class="text-dungeon-accent font-mono">--</strong></span>
+                </div>
+            </footer>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 2. VERSÃO MOBILE PORTRAIT (9:16 - 1080x1920) -->
+        <!-- ========================================== -->
+        <div id="mobileContainer" class="viewport-mobile relative hidden flex-col justify-between p-3 stone-card border-4 border-dungeon-border overflow-hidden transition-all">
+            
+            <!-- STATUS TOP BAR (MOBILE) -->
+            <div class="w-full flex items-center justify-between bg-black/60 p-2 rounded-xl border border-dungeon-border mb-1 z-10">
+                <div>
+                    <div class="text-[9px] font-cinzel text-slate-400">ARMADILHAS</div>
+                    <div id="mobileFlagsLeft" class="font-cinzel text-base font-bold text-dungeon-accent">10</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-[9px] font-cinzel text-slate-400">TEMPO</div>
+                    <div id="mobileTimer" class="font-mono text-sm font-bold text-slate-200">00:00</div>
+                </div>
+                <div class="text-right">
+                    <div class="text-[9px] font-cinzel text-slate-400">VIDA</div>
+                    <div class="flex gap-1" id="mobileHP">
+                        <i class="fa-solid fa-heart text-dungeon-danger text-xs"></i>
+                        <i class="fa-solid fa-heart text-dungeon-danger text-xs"></i>
+                        <i class="fa-solid fa-heart text-dungeon-danger text-xs"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TABULEIRO MOBILE COM SCROLL/ZOOM DINÂMICO -->
+            <div class="w-full flex-1 my-1 flex items-center justify-center bg-black/80 rounded-xl border border-dungeon-border p-1 overflow-auto relative">
+                <div id="mobileBoard" class="grid gap-1 m-auto"></div>
+            </div>
+
+            <!-- ZONA DE TOQUE INFERIOR MOBILE (BOTÕES AO ALCANCE DOS POLEGARES) -->
+            <div class="w-full bg-black/70 p-2.5 rounded-2xl border border-dungeon-border z-10 flex flex-col gap-2">
+                
+                <!-- BOTÃO ALTERNADOR DE MODO DE TOQUE: ESCAVAR VS BANDEIRA (REQUISITO MOBILE DO PDF) -->
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="btnModeDig" onclick="setMobileMode('dig')" class="py-2.5 rounded-xl font-cinzel text-xs font-bold flex items-center justify-center gap-2 bg-dungeon-accent text-black shadow-md">
+                        <i class="fa-solid fa-pickaxe text-sm"></i>
+                        <span>ESCAVAR (ABRIR)</span>
+                    </button>
+
+                    <button id="btnModeFlag" onclick="setMobileMode('flag')" class="py-2.5 rounded-xl font-cinzel text-xs font-bold flex items-center justify-center gap-2 stone-button text-slate-300">
+                        <i class="fa-solid fa-fire text-amber-500 text-sm"></i>
+                        <span>TOCHA (MARCAR)</span>
+                    </button>
+                </div>
+
+                <!-- MAGIA RADAR NO MOBILE -->
+                <div class="flex items-center justify-between px-1">
+                    <button onclick="useRadarSpell()" class="w-full py-1.5 rounded-lg stone-button text-xs font-cinzel text-dungeon-accent flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        <span>USAR MAGIA RADAR</span>
+                    </button>
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <!-- RODAPÉ DISCRETO -->
+    <footer class="w-full max-w-6xl mt-3 py-2 px-4 text-center text-[11px] text-slate-500 opacity-75">
+        <span>1º INFO • Guilherme Butieri</span>
+    </footer>
+
+    <!-- LÓGICA COMPLETA DO CAMPO MINADO RPG SEM ERROS -->
+    <script>
+        /* CONFIGURAÇÃO DA GRADE */
+        const BOARD_ROWS = 9;
+        const BOARD_COLS = 9;
+        const TOTAL_MINES = 10;
+
+        let grid = []; // Array bidimensional de células
+        let firstClick = true;
+        let flagsUsed = 0;
+        let lives = 3;
+        let timerSeconds = 0;
+        let timerInterval = null;
+        let activeViewport = 'web'; // 'web' ou 'mobile'
+        let mobileActionMode = 'dig'; // 'dig' ou 'flag'
+        let radarSpellsLeft = 2;
+        let isGameOver = false;
+
+        /* ESTRUTURA DA CÉLULA */
+        function createCell(r, c) {
+            return {
+                r: r,
+                c: c,
+                isMine: false,
+                isRevealed: false,
+                isFlagged: false,
+                neighborMines: 0
+            };
+        }
+
+        /* INICIALIZAR TABULEIRO */
+        function initGrid() {
+            grid = [];
+            for (let r = 0; r < BOARD_ROWS; r++) {
+                const row = [];
+                for (let c = 0; c < BOARD_COLS; c++) {
+                    row.push(createCell(r, c));
+                }
+                grid.push(row);
+            }
+            firstClick = true;
+            flagsUsed = 0;
+            lives = 3;
+            timerSeconds = 0;
+            radarSpellsLeft = 2;
+            isGameOver = false;
+            clearInterval(timerInterval);
+            timerInterval = null;
+            updateUI();
+            logMessage("> Masmorra resetada. Escolha uma pedra com cuidado.");
+        }
+
+        /* GERAR MINAS APÓS O PRIMEIRA CLIQUE PARA EVITAR DERROTA DE CARA */
+        function placeMines(safeR, safeC) {
+            let placed = 0;
+            while (placed < TOTAL_MINES) {
+                const r = Math.floor(Math.random() * BOARD_ROWS);
+                const c = Math.floor(Math.random() * BOARD_COLS);
+
+                // Não colocar mina no primeiro clique nem onde já existe
+                if ((r !== safeR || c !== safeC) && !grid[r][c].isMine) {
+                    grid[r][c].isMine = true;
+                    placed++;
+                }
+            }
+
+            // Calcular minas vizinhas
+            for (let r = 0; r < BOARD_ROWS; r++) {
+                for (let c = 0; c < BOARD_COLS; c++) {
+                    if (!grid[r][c].isMine) {
+                        let count = 0;
+                        getNeighbors(r, c).forEach(n => {
+                            if (n.isMine) count++;
+                        });
+                        grid[r][c].neighborMines = count;
+                    }
+                }
+            }
+
+            // Iniciar cronômetro
+            timerInterval = setInterval(() => {
+                timerSeconds++;
+                updateTimerDisplay();
+            }, 1000);
+        }
+
+        function getNeighbors(r, c) {
+            const neighbors = [];
+            for (let dr = -1; dr <= 1; dr++) {
+                for (let dc = -1; dc <= 1; dc++) {
+                    if (dr === 0 && dc === 0) continue;
+                    const nr = r + dr;
+                    const nc = c + dc;
+                    if (nr >= 0 && nr < BOARD_ROWS && nc >= 0 && nc < BOARD_COLS) {
+                        neighbors.push(grid[nr][nc]);
+                    }
+                }
+            }
+            return neighbors;
+        }
+
+        /* AÇÕES DO JOGADOR */
+        function handleCellClick(r, c) {
+            if (isGameOver) return;
+
+            // Se no mobile estiver em modo bandeira, altera a flag
+            if (activeViewport === 'mobile' && mobileActionMode === 'flag') {
+                toggleFlag(r, c);
+                return;
+            }
+
+            revealCell(r, c);
+        }
+
+        function revealCell(r, c) {
+            const cell = grid[r][c];
+            if (cell.isRevealed || cell.isFlagged || isGameOver) return;
+
+            if (firstClick) {
+                firstClick = false;
+                placeMines(r, c);
+            }
+
+            cell.isRevealed = true;
+
+            if (cell.isMine) {
+                // Perde vida ao pisar em armadilha
+                lives--;
+                logMessage(`> ALERTA! Armadilha ativada em (${r+1}, ${c+1})! HP restante: ${lives}`);
+                if (lives <= 0) {
+                    gameOver(false);
+                } else {
+                    renderBoards();
+                    updateUI();
+                }
+                return;
+            }
+
+            // Propagação de células vazias (0 minas ao redor)
+            if (cell.neighborMines === 0) {
+                getNeighbors(r, c).forEach(n => {
+                    if (!n.isRevealed && !n.isFlagged) {
+                        revealCell(n.r, n.c);
+                    }
+                });
+            }
+
+            checkWin();
+            renderBoards();
+            updateUI();
+        }
+
+        function toggleFlag(r, c, e) {
+            if (e) e.preventDefault();
+            if (isGameOver) return;
+
+            const cell = grid[r][c];
+            if (cell.isRevealed) return;
+
+            if (!cell.isFlagged && flagsUsed >= TOTAL_MINES) {
+                logMessage("> Sem tochas restantes para marcar!");
+                return;
+            }
+
+            cell.isFlagged = !cell.isFlagged;
+            flagsUsed += cell.isFlagged ? 1 : -1;
+
+            logMessage(cell.isFlagged ? `> Tocha colada na sala (${r+1}, ${c+1}).` : `> Tocha removida de (${r+1}, ${c+1}).`);
+            renderBoards();
+            updateUI();
+        }
+
+        function useRadarSpell() {
+            if (radarSpellsLeft <= 0 || isGameOver) return;
+
+            // Procura uma célula segura ainda não revelada
+            const safeCells = [];
+            for (let r = 0; r < BOARD_ROWS; r++) {
+                for (let c = 0; c < BOARD_COLS; c++) {
+                    if (!grid[r][c].isMine && !grid[r][c].isRevealed) {
+                        safeCells.push(grid[r][c]);
+                    }
+                }
+            }
+
+            if (safeCells.length > 0) {
+                const chosen = safeCells[Math.floor(Math.random() * safeCells.length)];
+                radarSpellsLeft--;
+                logMessage(`> Magia Radar revelou sala segura em (${chosen.r+1}, ${chosen.c+1})!`);
+                revealCell(chosen.r, chosen.c);
+            }
+        }
+
+        function checkWin() {
+            let unrevealedSafeCells = 0;
+            for (let r = 0; r < BOARD_ROWS; r++) {
+                for (let c = 0; c < BOARD_COLS; c++) {
+                    if (!grid[r][c].isMine && !grid[r][c].isRevealed) {
+                        unrevealedSafeCells++;
+                    }
+                }
+            }
+
+            if (unrevealedSafeCells === 0) {
+                gameOver(true);
+            }
+        }
+
+        function gameOver(won) {
+            isGameOver = true;
+            clearInterval(timerInterval);
+
+            // Revela todas as minas no final
+            for (let r = 0; r < BOARD_ROWS; r++) {
+                for (let c = 0; c < BOARD_COLS; c++) {
+                    if (grid[r][c].isMine) {
+                        grid[r][c].isRevealed = true;
+                    }
+                }
+            }
+            renderBoards();
+
+            const statusText = document.getElementById('webStatusText');
+            if (won) {
+                statusText.innerText = "MASMORRA CONCLUÍDA!";
+                statusText.className = "text-xs font-cinzel font-bold text-amber-400";
+                logMessage("> VITÓRIA! Você limpou a masmorra com sucesso!");
+            } else {
+                statusText.innerText = "VOCÊ MORREU NA MASMORRA";
+                statusText.className = "text-xs font-cinzel font-bold text-dungeon-danger";
+                logMessage("> DERROTA! Suas forças se esgotaram nas armadilhas.");
+            }
+        }
+
+        /* RENDERIZAR TABULEIROS NAS DUAS VERSÕES */
+        function renderBoards() {
+            const webBoard = document.getElementById('webBoard');
+            const mobileBoard = document.getElementById('mobileBoard');
+
+            webBoard.style.gridTemplateColumns = `repeat(${BOARD_COLS}, minmax(0, 1fr))`;
+            mobileBoard.style.gridTemplateColumns = `repeat(${BOARD_COLS}, minmax(0, 1fr))`;
+
+            webBoard.innerHTML = '';
+            mobileBoard.innerHTML = '';
+
+            for (let r = 0; r < BOARD_ROWS; r++) {
+                for (let c = 0; c < BOARD_COLS; c++) {
+                    const cell = grid[r][c];
+
+                    // Elemento para Web
+                    const btnWeb = createTileElement(cell, 'web');
+                    webBoard.appendChild(btnWeb);
+
+                    // Elemento para Mobile
+                    const btnMobile = createTileElement(cell, 'mobile');
+                    mobileBoard.appendChild(btnMobile);
+                }
+            }
+        }
+
+        function createTileElement(cell, type) {
+            const btn = document.createElement('button');
+            const sizeClass = type === 'web' ? 'w-10 h-10 text-sm' : 'w-9 h-9 text-xs';
+
+            btn.className = `${sizeClass} flex items-center justify-center font-bold font-mono rounded transition-all `;
+
+            if (cell.isRevealed) {
+                btn.classList.add('tile-revealed');
+                if (cell.isMine) {
+                    btn.innerHTML = `<i class="fa-solid fa-skull text-dungeon-danger"></i>`;
+                } else if (cell.neighborMines > 0) {
+                    btn.innerText = cell.neighborMines;
+                    // Cores por número estilo RPG
+                    const colors = ['', 'text-blue-400', 'text-emerald-400', 'text-amber-400', 'text-purple-400', 'text-red-400'];
+                    btn.classList.add(colors[cell.neighborMines] || 'text-white');
+                }
+            } else {
+                btn.classList.add('tile-hidden');
+                if (cell.isFlagged) {
+                    btn.innerHTML = `<i class="fa-solid fa-fire text-amber-500"></i>`;
+                }
+            }
+
+            btn.onclick = () => handleCellClick(cell.r, cell.c);
+            btn.oncontextmenu = (e) => toggleFlag(cell.r, cell.c, e);
+
+            return btn;
+        }
+
+        /* ATUALIZAÇÕES DA INTERFACE (HUD) */
+        function updateUI() {
+            // Web UI
+            document.getElementById('webFlagsLeft').innerText = TOTAL_MINES - flagsUsed;
+            document.getElementById('radarCount').innerText = `${radarSpellsLeft}/2`;
+
+            const webHP = document.getElementById('webHP');
+            webHP.innerHTML = '';
+            for (let i = 0; i < 3; i++) {
+                if (i < lives) {
+                    webHP.innerHTML += `<i class="fa-solid fa-heart text-dungeon-danger text-base"></i>`;
+                } else {
+                    webHP.innerHTML += `<i class="fa-regular fa-heart text-slate-600 text-base"></i>`;
+                }
+            }
+
+            // Contagem de salas seguras restantes
+            let unrevealedSafe = 0;
+            for (let r = 0; r < BOARD_ROWS; r++) {
+                for (let c = 0; c < BOARD_COLS; c++) {
+                    if (!grid[r][c].isMine && !grid[r][c].isRevealed) unrevealedSafe++;
+                }
+            }
+            document.getElementById('webSafeRemaining').innerText = unrevealedSafe;
+
+            // Mobile UI
+            document.getElementById('mobileFlagsLeft').innerText = TOTAL_MINES - flagsUsed;
+            const mobileHP = document.getElementById('mobileHP');
+            mobileHP.innerHTML = '';
+            for (let i = 0; i < 3; i++) {
+                if (i < lives) {
+                    mobileHP.innerHTML += `<i class="fa-solid fa-heart text-dungeon-danger text-xs"></i>`;
+                } else {
+                    mobileHP.innerHTML += `<i class="fa-regular fa-heart text-slate-600 text-xs"></i>`;
+                }
+            }
+        }
+
+        function updateTimerDisplay() {
+            const mins = Math.floor(timerSeconds / 60).toString().padStart(2, '0');
+            const secs = (timerSeconds % 60).toString().padStart(2, '0');
+            document.getElementById('webTimer').innerText = `${mins}:${secs}`;
+            document.getElementById('mobileTimer').innerText = `${mins}:${secs}`;
+        }
+
+        function setMobileMode(mode) {
+            mobileActionMode = mode;
+            const btnDig = document.getElementById('btnModeDig');
+            const btnFlag = document.getElementById('btnModeFlag');
+
+            if (mode === 'dig') {
+                btnDig.className = "py-2.5 rounded-xl font-cinzel text-xs font-bold flex items-center justify-center gap-2 bg-dungeon-accent text-black shadow-md";
+                btnFlag.className = "py-2.5 rounded-xl font-cinzel text-xs font-bold flex items-center justify-center gap-2 stone-button text-slate-300";
+            } else {
+                btnFlag.className = "py-2.5 rounded-xl font-cinzel text-xs font-bold flex items-center justify-center gap-2 bg-amber-600 text-white shadow-md";
+                btnDig.className = "py-2.5 rounded-xl font-cinzel text-xs font-bold flex items-center justify-center gap-2 stone-button text-slate-300";
+            }
+        }
+
+        function switchViewport(view) {
+            activeViewport = view;
+            const webContainer = document.getElementById('webContainer');
+            const mobileContainer = document.getElementById('mobileContainer');
+            const btnWeb = document.getElementById('btnViewWeb');
+            const btnMobile = document.getElementById('btnViewMobile');
+
+            if (view === 'web') {
+                webContainer.classList.remove('hidden');
+                webContainer.classList.add('flex');
+                mobileContainer.classList.remove('flex');
+                mobileContainer.classList.add('hidden');
+
+                btnWeb.className = "px-3.5 py-1.5 rounded-lg font-cinzel text-xs font-bold transition-all flex items-center gap-2 bg-dungeon-accent text-black";
+                btnMobile.className = "px-3.5 py-1.5 rounded-lg font-cinzel text-xs font-bold transition-all flex items-center gap-2 text-slate-400 hover:text-white";
+            } else {
+                webContainer.classList.remove('flex');
+                webContainer.classList.add('hidden');
+                mobileContainer.classList.remove('hidden');
+                mobileContainer.classList.add('flex');
+
+                btnMobile.className = "px-3.5 py-1.5 rounded-lg font-cinzel text-xs font-bold transition-all flex items-center gap-2 bg-dungeon-accent text-black";
+                btnWeb.className = "px-3.5 py-1.5 rounded-lg font-cinzel text-xs font-bold transition-all flex items-center gap-2 text-slate-400 hover:text-white";
+            }
+        }
+
+        function resetGame() {
+            initGrid();
+            renderBoards();
+            document.getElementById('webStatusText').innerText = "EXPLORANDO...";
+            document.getElementById('webStatusText').className = "text-xs font-cinzel font-bold text-emerald-400";
+        }
+
+        function logMessage(msg) {
+            const log = document.getElementById('gameLog');
+            const p = document.createElement('p');
+            p.innerText = msg;
+            log.appendChild(p);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // Inicialização
+        window.onload = function() {
+            initGrid();
+            renderBoards();
+        };
+    </script>
+</body>
+</html>
